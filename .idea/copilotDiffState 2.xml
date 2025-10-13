@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/include/SDManager.h">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/include/SDManager.h" />
+              <option name="originalContent" value="#pragma once&#10;#include &lt;Arduino.h&gt;&#10;#include &lt;FS.h&gt;&#10;#include &lt;SD.h&gt;&#10;#include &lt;SPI.h&gt;&#10;&#10;class SDManager {&#10;public:&#10;    SDManager(int cs, int sck, int miso, int mosi);&#10;    bool begin();&#10;    File openFile(const char *path);&#10;&#10;private:&#10;    int _cs, _sck, _miso, _mosi;&#10;};&#10;" />
+              <option name="updatedContent" value="#pragma once&#10;#include &lt;Arduino.h&gt;&#10;#include &lt;FS.h&gt; // ensure FS is included first so fs::File is available&#10;#include &lt;SD.h&gt;&#10;#include &lt;SPI.h&gt;&#10;&#10;class SDManager {&#10;public:&#10;    SDManager(int cs, int sck, int miso, int mosi);&#10;    bool begin();&#10;    bool exists(const char *path);&#10;    fs::File openFile(const char *path);&#10;&#10;private:&#10;    int _cs, _sck, _miso, _mosi;&#10;};" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/src/SDManager.cpp">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/src/SDManager.cpp" />
+              <option name="originalContent" value="#include &quot;SDManager.h&quot;&#10;&#10;#include &quot;SDManager.h&quot;&#10;&#10;SDManager::SDManager(int cs, int sck, int miso, int mosi)&#10;    : _cs(cs), _sck(sck), _miso(miso), _mosi(mosi) {}&#10;&#10;bool SDManager::begin() {&#10;    SPI.begin(_sck, _miso, _mosi);&#10;    if (!SD.begin(_cs)) {&#10;        Serial.println(&quot;❌ SD mount failed!&quot;);&#10;        return false;&#10;    }&#10;    Serial.println(&quot;✅ SD mounted successfully.&quot;);&#10;    return true;&#10;}&#10;&#10;bool SDManager::exists(const char *path) {&#10;    return SD.exists(path);&#10;}&#10;&#10;File SDManager::openFile(const char *path) {&#10;    File f = SD.open(path);&#10;    if (!f) Serial.println(&quot;❌ Failed to open file!&quot;);&#10;    return f;&#10;}&#10;&#10;" />
+              <option name="updatedContent" value="#include &quot;SDManager.h&quot;&#10;&#10;SDManager::SDManager(int cs, int sck, int miso, int mosi)&#10;    : _cs(cs), _sck(sck), _miso(miso), _mosi(mosi) {}&#10;&#10;bool SDManager::begin() {&#10;    SPI.begin(_sck, _miso, _mosi);&#10;    if (!SD.begin(_cs)) {&#10;        Serial.println(&quot;❌ SD mount failed!&quot;);&#10;        return false;&#10;    }&#10;    Serial.println(&quot;✅ SD mounted successfully.&quot;);&#10;    return true;&#10;}&#10;&#10;bool SDManager::exists(const char *path) {&#10;    return SD.exists(path);&#10;}&#10;&#10;fs::File SDManager::openFile(const char *path) {&#10;    // SD.open on ESP32 should return a fs::File when FS.h is included first&#10;    fs::File f = SD.open(path);&#10;    if (!f) Serial.println(&quot;❌ Failed to open file!&quot;);&#10;    return f;&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
