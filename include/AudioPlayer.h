@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 
+void setupAudioSystem();
 bool audioInit();
 bool audioReinit();
 String audioGetInfo();

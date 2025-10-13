@@ -1,33 +1,14 @@
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
-#include "../include/WebServer.h"
-#include "../include/AudioPlayer.h"
-
-// Define hardware pins
-#define LED_R 9
-#define LED_J 10
-#define LED_V 11
-#define DRAGON 12
-#define NECRO 13
+#include "Leds.h"
+#include "Smoke.h"
+#include "WebServer.h"
+#include "AudioPlayer.h"
 
 AsyncWebServer server(80);
 
 void setupWebServer() {
-  // Init pins
-  pinMode(LED_R, OUTPUT);
-  pinMode(LED_J, OUTPUT);
-  pinMode(LED_V, OUTPUT);
-  pinMode(DRAGON, OUTPUT);
-  pinMode(NECRO, OUTPUT);
-
-  // Default all off
-  digitalWrite(LED_R, LOW);
-  digitalWrite(LED_J, LOW);
-  digitalWrite(LED_V, LOW);
-  digitalWrite(DRAGON, LOW);
-  digitalWrite(NECRO, LOW);
-
   // ✅ React Router fallback
   server.onNotFound([](AsyncWebServerRequest *request) {
     String path = request->url();
@@ -38,8 +19,6 @@ void setupWebServer() {
       request->send(404, "application/json", R"({"error":"API route not found"})");
     }
   });
-
-  // ✅ REST API endpoints
 
   // Status endpoint
   server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *req) {
@@ -65,9 +44,9 @@ void setupWebServer() {
     brightness = constrain(brightness, 0, 255);
 
     int pin = -1;
-    if (color == "red") pin = LED_R;
-    else if (color == "yellow") pin = LED_J;
-    else if (color == "green") pin = LED_V;
+    if (color == "red") pin = LED_ONE;
+    else if (color == "yellow") pin = LED_TWO;
+    else if (color == "green") pin = LED_THREE;
 
     if (pin == -1) {
       req->send(400, "application/json", R"({"error":"Unknown color"})");
@@ -90,24 +69,68 @@ void setupWebServer() {
 
   // Smoke control
   server.on("/api/smoke", HTTP_GET, [](AsyncWebServerRequest *req) {
-    bool necroState = digitalRead(NECRO);
-    bool dragonState = digitalRead(DRAGON);
+    StaticJsonDocument<256> doc;
 
-    if (req->hasParam("necro")) {
-      String val = req->getParam("necro")->value();
-      necroState = (val == "on");
-      digitalWrite(NECRO, necroState);
+    // If `action` param present, perform a command
+    if (req->hasParam("action")) {
+      String action = req->getParam("action")->value();
+
+      if (action == "try") {
+        trySmoke();
+        doc["action"] = "try";
+        doc["message"] = "Performed smoke test";
+
+      } else if (action == "on") {
+        turnOnSmoke();
+        doc["action"] = "on";
+        doc["message"] = "Smoke output(s) turned on";
+
+      } else if (action == "off") {
+        turnOffSmoke();
+        doc["action"] = "off";
+        doc["message"] = "Smoke output(s) turned off";
+
+      } else if (action == "set") {
+        // set expects led (1|2 or pin) and brightness (0..255)
+        if (!req->hasParam("led") || !req->hasParam("brightness")) {
+          doc["error"] = "Missing 'led' or 'brightness' parameter for action=set";
+          String out;
+          serializeJson(doc, out);
+          req->send(400, "application/json", out);
+          return;
+        }
+
+        int ledVal = req->getParam("led")->value().toInt();
+        int brightness = req->getParam("brightness")->value().toInt();
+        brightness = constrain(brightness, 0, 255);
+
+        int pin = -1;
+        if (ledVal == 1) pin = SMOKE_1;
+        else if (ledVal == 2) pin = SMOKE_2;
+        else pin = ledVal; // allow direct pin numbers if user passes them
+
+        setSmoke(pin, brightness);
+        doc["action"] = "set";
+        doc["led"] = ledVal;
+        doc["brightness"] = brightness;
+        doc["message"] = "Smoke output set";
+
+      } else {
+        doc["error"] = "Unknown action; allowed: try,on,off,set";
+        String out;
+        serializeJson(doc, out);
+        req->send(400, "application/json", out);
+        return;
+      }
     }
 
-    if (req->hasParam("dragon")) {
-      String val = req->getParam("dragon")->value();
-      dragonState = (val == "on");
-      digitalWrite(DRAGON, dragonState);
-    }
+    // Always include current status of both smoke outputs
+    doc["smoke1"] = getSmoke(SMOKE_1);
+    doc["smoke2"] = getSmoke(SMOKE_2);
 
-    String resp = "{\"necro\":\"" + String(necroState ? "on" : "off") +
-                  "\",\"dragon\":\"" + String(dragonState ? "on" : "off") + "\"}";
-    req->send(200, "application/json", resp);
+    String out;
+    serializeJson(doc, out);
+    req->send(200, "application/json", out);
   });
 
   // === DFPlayer-backed Audio endpoints ===

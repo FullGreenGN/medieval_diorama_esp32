@@ -34,6 +34,16 @@ static bool tryBegin(Stream &s) {
   return ok;
 }
 
+void setupAudioSystem() {
+  // Initialize audio subsystem
+  if (audioInit()) {
+    Serial.println("[OK] Audio subsystem initialized");
+  } else {
+    Serial.println("[WARN] Audio subsystem failed to initialize");
+  }
+}
+
+
 bool audioInit() {
   lastInfo = "";
   appendInfo("[INFO] Initializing DFPlayer...");
