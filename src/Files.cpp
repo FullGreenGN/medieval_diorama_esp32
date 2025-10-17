@@ -4,10 +4,12 @@
 
 #include "Files.h"
 
+#include "Logger.h"
+
 void setupFileSystem() {
     if (!LittleFS.begin(true)) {
-        Serial.println("[ERROR] LittleFS mount failed!");
+        LOGE("LittleFS mount failed!");
         return;
     }
-    Serial.println("[OK] LittleFS mounted successfully");
+    LOGI("LittleFS mounted successfully");
 }

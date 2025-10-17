@@ -5,6 +5,9 @@
 #include "Smoke.h"
 #include "WebServer.h"
 #include "AudioPlayer.h"
+#include "Logger.h"
+#include "Pwm.h"
+#include "WifiRouter.h"
 
 AsyncWebServer server(80);
 
@@ -16,6 +19,7 @@ void setupWebServer() {
       // Return index.html for React routes
       request->send(LittleFS, "/index.html", "text/html");
     } else {
+      LOGE("("+request->url() + ") API route not found");
       request->send(404, "application/json", R"({"error":"API route not found"})");
     }
   });
@@ -65,6 +69,104 @@ void setupWebServer() {
 
     String resp = "{\"color\":\"" + color + "\",\"state\":\"" + state + "\",\"brightness\":" + String(brightness) + "}";
     req->send(200, "application/json", resp);
+  });
+
+  // Mill (PWM) control - read or set mill power
+  server.on("/api/mill", HTTP_GET, [](AsyncWebServerRequest *req) {
+    StaticJsonDocument<192> doc;
+
+    // If `power` param present, attempt to set PWM. For safety require `pwd` query param.
+    if (req->hasParam("power")) {
+      if (!req->hasParam("pwd")) {
+        doc["error"] = "Missing 'pwd' parameter";
+        String out;
+        serializeJson(doc, out);
+        req->send(401, "application/json", out);
+        return;
+      }
+
+      String pwd = req->getParam("pwd")->value();
+      if (pwd != String(WIFI_PASSWORD)) {
+        doc["error"] = "Unauthorized";
+        String out;
+        serializeJson(doc, out);
+        req->send(401, "application/json", out);
+        return;
+      }
+
+      int power = req->getParam("power")->value().toInt();
+      power = constrain(power, 0, 255);
+      setPwm(power);
+      doc["set"] = true;
+      doc["power"] = getPwm();
+
+      String out;
+      serializeJson(doc, out);
+      req->send(200, "application/json", out);
+      return;
+    }
+
+    // No power param: return current status
+    doc["power"] = getPwm();
+    String out;
+    serializeJson(doc, out);
+    req->send(200, "application/json", out);
+  });
+
+  // Boost / fire-effect control endpoint
+  server.on("/api/boost", HTTP_GET, [](AsyncWebServerRequest *req) {
+    StaticJsonDocument<256> doc;
+
+    // Supported query forms:
+    //  - /api/boost?action=start
+    //  - /api/boost?action=stop
+    //  - /api/boost?start=true
+    //  - /api/boost?stop=true
+    //  - /api/boost  -> returns status
+
+    bool handled = false;
+    if (req->hasParam("action")) {
+      String action = req->getParam("action")->value();
+      if (action == "start") {
+        startFireEffect();
+        doc["action"] = "start";
+        handled = true;
+      } else if (action == "stop") {
+        stopFireEffect();
+        doc["action"] = "stop";
+        handled = true;
+      }
+    }
+
+    if (!handled) {
+      if (req->hasParam("start")) {
+        String v = req->getParam("start")->value();
+        if (v == "1" || v.equalsIgnoreCase("true")) {
+          startFireEffect();
+          doc["action"] = "start";
+          handled = true;
+        }
+      }
+    }
+
+    if (!handled) {
+      if (req->hasParam("stop")) {
+        String v = req->getParam("stop")->value();
+        if (v == "1" || v.equalsIgnoreCase("true")) {
+          stopFireEffect();
+          doc["action"] = "stop";
+          handled = true;
+        }
+      }
+    }
+
+    // If not a state-changing request, just return current status
+    doc["active"] = isFireEffectActive();
+    doc["message"] = handled ? "Action applied" : "No action; returning status";
+
+    String out;
+    serializeJson(doc, out);
+    req->send(handled ? 200 : 200, "application/json", out);
   });
 
   // Smoke control

@@ -3,15 +3,15 @@
 //
 #include "WifiRouter.h"
 
+#include "Logger.h"
+
 void setupWiFi(const char *ssid, const char *password) {
     try {
         WiFi.mode(WIFI_MODE_AP);
         WiFi.softAP(ssid, password);
-        Serial.print("Access Point IP: ");
-        Serial.println(WiFi.softAPIP());
+        LOGI("Access Point IP: " + WiFi.softAPIP().toString());
     } catch (const std::exception &err) {
-        Serial.print("[ERROR] Exception during setup: ");
-        Serial.println(err.what());
+        LOGE("Exception during setup: " + String(err.what()) );
     }
 }
 
@@ -24,9 +24,10 @@ void checkWiFiConnection() {
             delay(100);
         }
         if (WiFi.status() == WL_CONNECTED) {
-            Serial.println("Reconnected to WiFi!");
+            LOGI("Reconnected attempt: " + String(millis()));
+            LOGI("Reconnected to WiFi!");
         } else {
-            Serial.println("Failed to reconnect to WiFi.");
+            LOGE("Failed to reconnect to WiFi.");
         }
     }
 }

@@ -3,14 +3,18 @@
 #include "AudioPlayer.h"
 #include "WifiRouter.h"
 #include "Leds.h"
+#include "Logger.h"
 #include "Smoke.h"
+#include "Pwm.h"
 
 void setup() {
   Serial.begin(115200);
+  Logger::init("DIORAMA", Logger::DEBUG);
   delay(3000);
+  LOGI("ESP 32 is booting");
 
-  Serial.println("[BOOT] ESP32 starting up...");
   setupLeds();
+  setupPwm();
   setupSmoke();
   setupAudioSystem();
   setupWiFi(WIFI_SSID, WIFI_PASSWORD);
@@ -20,8 +24,10 @@ void setup() {
 }
 
 void loop() {
-  // Run non-blocking fire animation for LEDs
-  fireEffect();
+  // Run non-blocking fire animation for LEDs only when requested
+  if (isFireEffectActive()) {
+    fireEffect();
+  }
   // keep loop cooperative; fireEffect handles its own frame timing
   delay(1);
 }
